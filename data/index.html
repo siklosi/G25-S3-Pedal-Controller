@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G25 S3 Pedal Config</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #151b26;
+            --accent: #3b82f6;
+            --text-main: #e2e8f0;
+            --text-mute: #94a3b8;
+            --border: #1e293b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --gas-color: #22c55e;
+            --brake-color: #ef4444;
+            --clutch-color: #3b82f6;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status {
+            font-size: 14px;
+            color: var(--text-mute);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+
+        .connected .status-dot {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media(min-width: 1024px) {
+            .grid {
+                grid-template-columns: 400px 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 18px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 14px;
+            color: var(--text-mute);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .live-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .bar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-mute);
+        }
+
+        .bar-bg {
+            background: #1e293b;
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.05s linear;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-mute);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .inputs-row {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .inputs-row label {
+            width: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-mute);
+        }
+
+        input[type="number"] {
+            background: #0f1720;
+            border: 1px solid #1e293b;
+            color: white;
+            padding: 6px;
+            border-radius: 4px;
+            width: 60px;
+            font-size: 13px;
+            text-align: right;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #0f1720;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="text"] {
+            background: #0f1720;
+            border: 1px solid #1e293b;
+            color: white;
+            padding: 6px;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-mute);
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-mute);
+            margin-bottom: 4px;
+        }
+
+        .profile-list {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #0f1720;
+            border: 1px solid #1e293b;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .profile-item {
+            padding: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .profile-item:hover {
+            background: #1e293b;
+        }
+
+        .profile-item.selected {
+            background: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>G25 S3</h1>
+            <div class="status" id="wsStatus">
+                <div class="status-dot"></div>
+                <span>Disconnected</span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- LEFT COLUMN -->
+            <div style="display:flex; flex-direction:column;">
+
+                <!-- NAVIGATION -->
+                <!-- NAVIGATION -->
+                <div class="card" style="padding: 10px; display:flex; gap:10px;">
+                    <div style="font-weight:bold; color:var(--text-main); padding: 8px;">G25 Pedal S3 Config</div>
+                </div>
+
+                <!-- PEDALS VIEW -->
+                <div id="viewPedals">
+                    <div class="card">
+                        <h2>Live Monitor</h2>
+                        <div class="live-bars">
+                            <div class="bar-group">
+                                <div class="label-row">
+                                    <span style="color:var(--gas-color)">GAS</span>
+                                    <span style="font-family:monospace; font-size:12px;">
+                                        <span id="valGasRaw" style="color:var(--text-mute)">0%</span> <span
+                                            style="color:var(--text-mute)">➜</span> <span id="valGas"
+                                            style="color:#fff; font-weight:bold;">0%</span>
+                                    </span>
+                                </div>
+                                <div class="bar-bg" style="margin-bottom:2px">
+                                    <div class="bar-fill" id="barGasRaw" style="background:#475569; height:4px;"></div>
+                                </div>
+                                <div class="bar-bg">
+                                    <div class="bar-fill" id="barGas" style="background:var(--gas-color)"></div>
+                                </div>
+                            </div>
+
+                            <div class="bar-group">
+                                <div class="label-row">
+                                    <span style="color:var(--brake-color)">BRAKE</span>
+                                    <span style="font-family:monospace; font-size:12px;">
+                                        <span id="valBrakeRaw" style="color:var(--text-mute)">0%</span> <span
+                                            style="color:var(--text-mute)">➜</span> <span id="valBrake"
+                                            style="color:#fff; font-weight:bold;">0%</span>
+                                    </span>
+                                </div>
+                                <div class="bar-bg" style="margin-bottom:2px">
+                                    <div class="bar-fill" id="barBrakeRaw" style="background:#475569; height:4px;">
+                                    </div>
+                                </div>
+                                <div class="bar-bg">
+                                    <div class="bar-fill" id="barBrake" style="background:var(--brake-color)"></div>
+                                </div>
+                            </div>
+
+                            <div class="bar-group">
+                                <div class="label-row">
+                                    <span style="color:var(--clutch-color)">CLUTCH</span>
+                                    <span style="font-family:monospace; font-size:12px;">
+                                        <span id="valClutchRaw" style="color:var(--text-mute)">0%</span> <span
+                                            style="color:var(--text-mute)">➜</span> <span id="valClutch"
+                                            style="color:#fff; font-weight:bold;">0%</span>
+                                    </span>
+                                </div>
+                                <div class="bar-bg" style="margin-bottom:2px">
+                                    <div class="bar-fill" id="barClutchRaw" style="background:#475569; height:4px;">
+                                    </div>
+                                </div>
+                                <div class="bar-bg">
+                                    <div class="bar-fill" id="barClutch" style="background:var(--clutch-color)"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Calibration</h2>
+                        <div style="margin-bottom: 15px;">
+                            <div class="inputs-row">
+                                <label style="color:var(--gas-color)">GAS</label>
+                                <input type="number" id="gasMin">
+                                <button class="btn btn-outline" onclick="btnSample('gas','min')">Min</button>
+                                <input type="number" id="gasMax">
+                                <button class="btn btn-outline" onclick="btnSample('gas','max')">Max</button>
+                            </div>
+                            <div
+                                style="display:flex; align-items:center; gap:8px; font-size:12px; margin-left: 55px; margin-bottom:10px; color:var(--text-mute)">
+                                <input type="checkbox" id="gasInverted"> Inverted
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <div class="inputs-row">
+                                <label style="color:var(--brake-color)">BRAKE</label>
+                                <input type="number" id="brakeMin">
+                                <button class="btn btn-outline" onclick="btnSample('brake','min')">Min</button>
+                                <input type="number" id="brakeMax">
+                                <button class="btn btn-outline" onclick="btnSample('brake','max')">Max</button>
+                            </div>
+                            <div
+                                style="display:flex; align-items:center; gap:8px; font-size:12px; margin-left: 55px; margin-bottom:10px; color:var(--text-mute)">
+                                <input type="checkbox" id="brakeInverted"> Inverted
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="inputs-row">
+                                <label style="color:var(--clutch-color)">CLUTCH</label>
+                                <input type="number" id="clutchMin">
+                                <button class="btn btn-outline" onclick="btnSample('clutch','min')">Min</button>
+                                <input type="number" id="clutchMax">
+                                <button class="btn btn-outline" onclick="btnSample('clutch','max')">Max</button>
+                            </div>
+                            <div
+                                style="display:flex; align-items:center; gap:8px; font-size:12px; margin-left: 55px; margin-bottom:10px; color:var(--text-mute)">
+                                <input type="checkbox" id="clutchInverted"> Inverted
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
+                            <button class="btn" style="width:100%" onclick="saveConfig()">Save All to Flash</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Device Profiles</h2>
+                        <div id="profileList" class="profile-list">Loading...</div>
+                        <div style="display:flex; gap:5px; margin-bottom:10px;">
+                            <input type="text" id="profileName" placeholder="Profile Name">
+                            <button class="btn" onclick="devSaveProfile()">Save</button>
+                        </div>
+                        <div
+                            style="display:flex; gap:5px; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:15px;">
+                            <button class="btn" style="flex:1" onclick="devLoadProfile()">Load Selected</button>
+                            <button class="btn btn-outline"
+                                style="flex:1; border-color:var(--danger); color:var(--danger);"
+                                onclick="devDeleteProfile()">Delete</button>
+                        </div>
+
+                        <h3>PC Backup</h3>
+                        <div style="display:flex; gap:10px">
+                            <button class="btn btn-outline" onclick="downloadProfile()" style="flex:1">Export
+                                File</button>
+                            <button class="btn btn-outline" onclick="uploadProfile()" style="flex:1">Import
+                                File</button>
+                            <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)">
+                        </div>
+                    </div>
+                </div>
+
+
+
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <!-- We only show Pedal Tuning when in Pedals view, but simpler to just hide the whole column or swap content -->
+            <!-- Actually, let's keep the layout simple. -->
+            <div id="colRight" class="card">
+                <h2>Pedal Tuning</h2>
+                <div class="tabs">
+                    <div class="tab active" onclick="setTab('gas')">Gas</div>
+                    <div class="tab" onclick="setTab('brake')">Brake</div>
+                    <div class="tab" onclick="setTab('clutch')">Clutch</div>
+                </div>
+
+                <div id="configPanel">
+                    <div
+                        style="height:350px; position:relative; margin-bottom:20px; background:#0f1720; border-radius:8px; border:1px solid #1e293b; padding:10px;">
+                        <canvas id="curveChart"></canvas>
+                    </div>
+
+                    <h3 style="margin-bottom:8px">Curve Presets</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-outline" onclick="applyPreset('linear')">Linear</button>
+                        <button class="btn btn-outline" onclick="applyPreset('progressive')">Progressive</button>
+                        <button class="btn btn-outline" onclick="applyPreset('sigmoidal')">S-Shape</button>
+                        <button class="btn btn-outline" onclick="applyPreset('aggressive')">Aggressive</button>
+                    </div>
+
+                    <h3 style="margin-bottom:8px">Custom Curves</h3>
+                    <p style="font-size:11px; color:var(--text-mute); margin-top:-5px; margin-bottom:8px;">Hold
+                        <b>Shift</b> + Click to Save current curve to button.
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-outline" onclick="handleCustom(event, 1)">Custom 1</button>
+                        <button class="btn btn-outline" onclick="handleCustom(event, 2)">Custom 2</button>
+                        <button class="btn btn-outline" onclick="handleCustom(event, 3)">Custom 3</button>
+                        <button class="btn btn-outline" onclick="handleCustom(event, 4)">Custom 4</button>
+                    </div>
+
+                    <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                        <div>
+                            <h3>Deadzones</h3>
+                            <div style="display:flex; gap:10px;">
+                                <div class="form-group">
+                                    <label>Start</label>
+                                    <input type="number" id="inpDzStart" style="width:80px">
+                                </div>
+                                <div class="form-group">
+                                    <label>End</label>
+                                    <input type="number" id="inpDzEnd" style="width:80px">
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3>Filters & Limits</h3>
+                            <div class="form-group">
+                                <label>Smoothing: <span id="lblSmooth">0</span>%</label>
+                                <input type="range" id="inpSmooth" min="0" max="95" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label>Output Limit: <span id="lblCeil">100</span>%</label>
+                                <input type="range" id="inpCeil" min="10" max="100" step="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            gas: { min: 0, max: 4095, dzStart: 0, dzEnd: 0, inverted: false, curve: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], smooth: 0, ceil: 100 },
+            brake: { min: 0, max: 4095, dzStart: 0, dzEnd: 0, inverted: false, curve: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], smooth: 0, ceil: 100 },
+            clutch: { min: 0, max: 4095, dzStart: 0, dzEnd: 0, inverted: false, curve: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100], smooth: 0, ceil: 100 }
+        };
+        let currentTab = 'gas';
+        let rawValues = { gas: 0, brake: 0, clutch: 0 };
+        let selectedProfile = null;
+
+
+
+        // CHART
+        const ctx = document.getElementById('curveChart').getContext('2d');
+        let chart;
+
+        function initChart() {
+            const data = {
+                labels: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+                datasets: [
+                    {
+                        label: 'Output',
+                        data: state[currentTab].curve,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6
+                    },
+                    {
+                        type: 'scatter',
+                        data: [{ x: 0, y: 0 }],
+                        backgroundColor: '#ef4444',
+                        pointRadius: 8
+                    }
+                ]
+            };
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Input %' }, grid: { color: '#1e293b' } },
+                        y: { min: 0, max: 100, title: { display: true, text: 'Output %' }, grid: { color: '#1e293b' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            ctx.canvas.onclick = (e) => {
+                const canvasPosition = Chart.helpers.getRelativePosition(e, chart);
+                const xVal = chart.scales.x.getValueForPixel(canvasPosition.x);
+                const yVal = chart.scales.y.getValueForPixel(canvasPosition.y);
+                const idx = Math.round(xVal);
+                if (idx >= 0 && idx <= 10) {
+                    state[currentTab].curve[idx] = Math.max(0, Math.min(100, Math.round(yVal)));
+                    chart.data.datasets[0].data = state[currentTab].curve;
+                    chart.update();
+                }
+            };
+        }
+
+        function setTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            Array.from(document.querySelectorAll('.tab')).find(t => t.innerText.toLowerCase() === tab).classList.add('active');
+            currentTab = tab;
+            refreshTabUI();
+        }
+
+        function refreshAllInputs() {
+            ['gas', 'brake', 'clutch'].forEach(p => {
+                document.getElementById(p + 'Min').value = state[p].min;
+                document.getElementById(p + 'Max').value = state[p].max;
+                document.getElementById(p + 'Inverted').checked = state[p].inverted;
+            });
+            refreshTabUI();
+        }
+
+        function refreshTabUI() {
+            const s = state[currentTab];
+            document.getElementById('inpDzStart').value = s.dzStart;
+            document.getElementById('inpDzEnd').value = s.dzEnd;
+            document.getElementById('inpSmooth').value = s.smooth || 0;
+            document.getElementById('lblSmooth').innerText = s.smooth || 0;
+            document.getElementById('inpCeil').value = s.ceil || 100;
+            document.getElementById('lblCeil').innerText = s.ceil || 100;
+
+            let color = '#3b82f6';
+            if (currentTab === 'gas') color = '#22c55e';
+            if (currentTab === 'brake') color = '#ef4444';
+
+            chart.data.datasets[0].data = s.curve;
+            chart.data.datasets[0].borderColor = color;
+            chart.data.datasets[0].backgroundColor = color + '20';
+            chart.update();
+        }
+
+        function bindInputs() {
+            ['gas', 'brake', 'clutch'].forEach(p => {
+                document.getElementById(p + 'Min').onchange = (e) => state[p].min = parseInt(e.target.value);
+                document.getElementById(p + 'Max').onchange = (e) => state[p].max = parseInt(e.target.value);
+                document.getElementById(p + 'Inverted').onchange = (e) => state[p].inverted = e.target.checked;
+            });
+            const updateTabState = () => {
+                const s = state[currentTab];
+                s.dzStart = parseInt(document.getElementById('inpDzStart').value);
+                s.dzEnd = parseInt(document.getElementById('inpDzEnd').value);
+                s.smooth = parseInt(document.getElementById('inpSmooth').value);
+                s.ceil = parseInt(document.getElementById('inpCeil').value);
+                document.getElementById('lblSmooth').innerText = s.smooth;
+                document.getElementById('lblCeil').innerText = s.ceil;
+            };
+            document.getElementById('inpDzStart').onchange = updateTabState;
+            document.getElementById('inpDzEnd').onchange = updateTabState;
+            document.getElementById('inpSmooth').oninput = updateTabState;
+            document.getElementById('inpCeil').oninput = updateTabState;
+            document.getElementById('wifiPass').onchange = (e) => state.wifiPass = e.target.value;
+        }
+
+        function btnSample(pedal, type) {
+            const val = rawValues[pedal];
+            if (type === 'min') {
+                document.getElementById(pedal + 'Min').value = val;
+                state[pedal].min = val;
+            } else {
+                document.getElementById(pedal + 'Max').value = val;
+                state[pedal].max = val;
+            }
+        }
+
+        function applyPreset(type) {
+            let c = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+            if (type === 'progressive') c = [0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100];
+            else if (type === 'aggressive') c = [0, 20, 40, 55, 68, 79, 88, 94, 98, 100, 100];
+            else if (type === 'sigmoidal') c = [0, 2, 7, 18, 35, 50, 65, 82, 93, 98, 100];
+            state[currentTab].curve = c;
+            refreshTabUI();
+        }
+
+        function bindInputs() {
+            ['gas', 'brake', 'clutch'].forEach(p => {
+                document.getElementById(p + 'Min').onchange = (e) => state[p].min = parseInt(e.target.value);
+                document.getElementById(p + 'Max').onchange = (e) => state[p].max = parseInt(e.target.value);
+                document.getElementById(p + 'Inverted').onchange = (e) => state[p].inverted = e.target.checked;
+            });
+            const updateTabState = () => {
+                const s = state[currentTab];
+                s.dzStart = parseInt(document.getElementById('inpDzStart').value);
+                s.dzEnd = parseInt(document.getElementById('inpDzEnd').value);
+                s.smooth = parseInt(document.getElementById('inpSmooth').value);
+                s.ceil = parseInt(document.getElementById('inpCeil').value);
+                document.getElementById('lblSmooth').innerText = s.smooth;
+                document.getElementById('lblCeil').innerText = s.ceil;
+            };
+            document.getElementById('inpDzStart').onchange = updateTabState;
+            document.getElementById('inpDzEnd').onchange = updateTabState;
+            document.getElementById('inpSmooth').oninput = updateTabState;
+            document.getElementById('inpCeil').oninput = updateTabState;
+        }
+
+        const customCurves = [
+            [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+            [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+            [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+            [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        ];
+
+        function handleCustom(e, id) {
+            const idx = id - 1;
+            if (e.shiftKey) {
+                // Save to slot
+                customCurves[idx] = [...state[currentTab].curve];
+                // Notify user
+                e.target.innerText = "Saved!";
+                setTimeout(() => e.target.innerText = "Custom " + id, 1000);
+
+                // We should push this to device immediately so it persists
+                saveConfig();
+            } else {
+                // Load from slot
+                state[currentTab].curve = [...customCurves[idx]];
+                refreshTabUI();
+            }
+        }
+
+        // PC EXPORT
+        function downloadProfile() {
+            const a = document.createElement('a');
+            a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(state));
+            a.download = 'g25_profile.json';
+            a.click();
+        }
+        function uploadProfile() { document.getElementById('fileInput').click(); }
+        function handleFileSelect(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = (ev) => {
+                try {
+                    const loaded = JSON.parse(ev.target.result);
+                    if (loaded.gas) state.gas = loaded.gas;
+                    if (loaded.brake) state.brake = loaded.brake;
+                    if (loaded.clutch) state.clutch = loaded.clutch;
+                    refreshAllInputs();
+                } catch (e) { }
+            };
+            r.readAsText(f);
+        }
+
+        // DEVICE PROFILES
+        async function listProfiles() {
+            try {
+                const res = await fetch('/api/profiles/list');
+                const list = await res.json();
+                const el = document.getElementById('profileList');
+                el.innerHTML = '';
+                list.forEach(f => {
+                    const d = document.createElement('div');
+                    d.className = 'profile-item' + (selectedProfile === f ? ' selected' : '');
+                    d.innerText = f;
+                    d.onclick = () => {
+                        selectedProfile = f;
+                        document.getElementById('profileName').value = f.replace('.json', '');
+                        listProfiles(); // refresh toggle
+                    };
+                    el.appendChild(d);
+                });
+            } catch (e) { document.getElementById('profileList').innerText = 'No profiles found.'; }
+        }
+
+        async function devSaveProfile() {
+            const name = document.getElementById('profileName').value;
+            if (!name) return alert("Enter name");
+            try {
+                await fetch('/api/profiles/save?name=' + encodeURIComponent(name), { method: 'POST' });
+                listProfiles();
+            } catch (e) { alert("Save failed"); }
+        }
+        async function devLoadProfile() {
+            if (!selectedProfile) return alert("Select profile");
+            try {
+                await fetch('/api/profiles/load?name=' + encodeURIComponent(selectedProfile), { method: 'POST' });
+                await loadConfig(); // reload active config
+                alert("Loaded");
+            } catch (e) { alert("Load failed"); }
+        }
+        async function devDeleteProfile() {
+            if (!selectedProfile) return;
+            if (!confirm("Delete " + selectedProfile + "?")) return;
+            try {
+                await fetch('/api/profiles/delete?name=' + encodeURIComponent(selectedProfile), { method: 'POST' });
+                selectedProfile = null;
+                listProfiles();
+            } catch (e) { }
+        }
+
+        // NETWORK & SYNC
+        let ws;
+        function connectWS() {
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            const url = `${proto}://${location.hostname}:81/`;
+            ws = new WebSocket(url);
+            ws.onopen = () => {
+                document.getElementById('wsStatus').classList.add('connected');
+                document.getElementById('wsStatus').querySelector('span').innerText = "Connected";
+            };
+            ws.onmessage = (e) => {
+                try {
+                    const d = JSON.parse(e.data);
+                    if (d.gas) updateLive(d);
+                } catch (err) { }
+            };
+            ws.onclose = () => {
+                document.getElementById('wsStatus').classList.remove('connected');
+                document.getElementById('wsStatus').querySelector('span').innerText = "Disconnected";
+                setTimeout(connectWS, 2000);
+            };
+        }
+
+        function updateLive(d) {
+            rawValues.gas = d.gas.r;
+            rawValues.brake = d.brake.r;
+            rawValues.clutch = d.clutch.r;
+
+            const toPct = (val) => (val / 4095 * 100).toFixed(1) + '%';
+
+            // Gas
+            document.getElementById('barGas').style.width = toPct(d.gas.o);
+            document.getElementById('barGasRaw').style.width = toPct(d.gas.r);
+            document.getElementById('valGas').innerText = toPct(d.gas.o);
+            document.getElementById('valGasRaw').innerText = toPct(d.gas.r);
+
+            // Brake
+            document.getElementById('barBrake').style.width = toPct(d.brake.o);
+            document.getElementById('barBrakeRaw').style.width = toPct(d.brake.r);
+            document.getElementById('valBrake').innerText = toPct(d.brake.o);
+            document.getElementById('valBrakeRaw').innerText = toPct(d.brake.r);
+
+            // Clutch
+            document.getElementById('barClutch').style.width = toPct(d.clutch.o);
+            document.getElementById('barClutchRaw').style.width = toPct(d.clutch.r);
+            document.getElementById('valClutch').innerText = toPct(d.clutch.o);
+            document.getElementById('valClutchRaw').innerText = toPct(d.clutch.r);
+
+            if (chart) {
+                const s = state[currentTab];
+                let raw = rawValues[currentTab];
+                let min = s.min + s.dzStart;
+                let max = s.max - s.dzEnd;
+                let range = max - min;
+                if (range < 1) range = 1;
+                let pct = (raw - min) / range * 100;
+                if (s.inverted) pct = 100 - pct;
+                pct = Math.max(0, Math.min(100, pct));
+
+                let outPct = 0;
+                if (currentTab === 'gas') outPct = d.gas.o / 4095 * 100;
+                if (currentTab === 'brake') outPct = d.brake.o / 4095 * 100;
+                if (currentTab === 'clutch') outPct = d.clutch.o / 4095 * 100;
+
+                chart.data.datasets[1].data = [{ x: pct, y: outPct }];
+                chart.update('none');
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                if (data.gas) state.gas = data.gas;
+                if (data.brake) state.brake = data.brake;
+                if (data.clutch) state.clutch = data.clutch;
+
+                // if (data.ip) document.getElementById('dispIP').innerText = data.ip;
+
+                refreshAllInputs();
+            } catch (e) { }
+        }
+
+        async function saveConfig(silent = true) {
+            try {
+                const payload = {
+                    ...state,
+                    customs: customCurves
+                };
+                await fetch('/api/config', { method: 'POST', body: JSON.stringify(payload) });
+                if (!silent) alert("Saved!");
+            } catch (e) { alert("Error saving"); }
+        }
+
+        initChart();
+        bindInputs();
+        loadConfig();
+        if (location.hostname) {
+            connectWS();
+            listProfiles();
+        }
+    </script>
+</body>
+
+</html>
