@@ -292,6 +292,7 @@
                 <div class="status-dot"></div>
                 <span>Disconnected</span>
             </div>
+
         </header>
 
         <div class="grid">
@@ -311,12 +312,16 @@
                         <div class="live-bars">
                             <div class="bar-group">
                                 <div class="label-row">
-                                    <span style="color:var(--gas-color)">GAS</span>
+                                    <span style="color:var(--gas-color)">THROTTLE</span>
                                     <span style="font-family:monospace; font-size:12px;">
-                                        <span id="valGasRaw" style="color:var(--text-mute)">0%</span> <span
-                                            style="color:var(--text-mute)">➜</span> <span id="valGas"
-                                            style="color:#fff; font-weight:bold;">0%</span>
+                                        <span id="lblGasRaw" style="color:var(--text-mute)">Input (Raw)</span> <span
+                                            style="color:var(--text-mute)">➜</span> <span id="lblGasOut"
+                                            style="color:#fff; font-weight:bold;">Output (Final)</span>
                                     </span>
+                                </div>
+                                <div class="label-row" style="margin-bottom:2px">
+                                    <span id="valGasRaw" style="color:var(--text-mute)">0%</span>
+                                    <span id="valGas" style="color:#fff; font-weight:bold;">0%</span>
                                 </div>
                                 <div class="bar-bg" style="margin-bottom:2px">
                                     <div class="bar-fill" id="barGasRaw" style="background:#475569; height:4px;"></div>
@@ -330,9 +335,13 @@
                                 <div class="label-row">
                                     <span style="color:var(--brake-color)">BRAKE</span>
                                     <span style="font-family:monospace; font-size:12px;">
-                                        <span id="valBrakeRaw" style="color:var(--text-mute)">0%</span> <span
-                                            style="color:var(--text-mute)">➜</span> <span id="valBrake"
-                                            style="color:#fff; font-weight:bold;">0%</span>
+                                        <span style="color:var(--text-mute)">Input</span> ➜ <span
+                                            style="color:#fff; font-weight:bold;">Output</span>
+                                    </span>
+                                </div>
+                                <div class="label-row" style="margin-bottom:2px">
+                                    <span id="valBrakeRaw" style="color:var(--text-mute)">0%</span>
+                                    <span id="valBrake" style="color:#fff; font-weight:bold;">0%</span>
                                     </span>
                                 </div>
                                 <div class="bar-bg" style="margin-bottom:2px">
@@ -348,9 +357,13 @@
                                 <div class="label-row">
                                     <span style="color:var(--clutch-color)">CLUTCH</span>
                                     <span style="font-family:monospace; font-size:12px;">
-                                        <span id="valClutchRaw" style="color:var(--text-mute)">0%</span> <span
-                                            style="color:var(--text-mute)">➜</span> <span id="valClutch"
-                                            style="color:#fff; font-weight:bold;">0%</span>
+                                        <span style="color:var(--text-mute)">Input</span> ➜ <span
+                                            style="color:#fff; font-weight:bold;">Output</span>
+                                    </span>
+                                </div>
+                                <div class="label-row" style="margin-bottom:2px">
+                                    <span id="valClutchRaw" style="color:var(--text-mute)">0%</span>
+                                    <span id="valClutch" style="color:#fff; font-weight:bold;">0%</span>
                                     </span>
                                 </div>
                                 <div class="bar-bg" style="margin-bottom:2px">
@@ -368,7 +381,7 @@
                         <h2>Calibration</h2>
                         <div style="margin-bottom: 15px;">
                             <div class="inputs-row">
-                                <label style="color:var(--gas-color)">GAS</label>
+                                <label style="color:var(--gas-color)">THROTTLE</label>
                                 <input type="number" id="gasMin">
                                 <button class="btn btn-outline" onclick="btnSample('gas','min')">Min</button>
                                 <input type="number" id="gasMax">
@@ -408,7 +421,8 @@
                             </div>
                         </div>
                         <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
-                            <button class="btn" style="width:100%" onclick="saveConfig()">Save All to Flash</button>
+                            <button class="btn" style="width:100%" onclick="saveConfig(false)">Save All to
+                                Flash</button>
                         </div>
                     </div>
 
@@ -448,7 +462,7 @@
             <div id="colRight" class="card">
                 <h2>Pedal Tuning</h2>
                 <div class="tabs">
-                    <div class="tab active" onclick="setTab('gas')">Gas</div>
+                    <div class="tab active" onclick="setTab('gas')">Throttle</div>
                     <div class="tab" onclick="setTab('brake')">Brake</div>
                     <div class="tab" onclick="setTab('clutch')">Clutch</div>
                 </div>
@@ -526,12 +540,14 @@
         let chart;
 
         function initChart() {
+            // Convert simple array [0,10...] to scatter format [{x:0,y:0}...]
+            const curvePoints = state[currentTab].curve.map((y, i) => ({ x: i * 10, y: y }));
+
             const data = {
-                labels: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
                 datasets: [
                     {
                         label: 'Output',
-                        data: state[currentTab].curve,
+                        data: curvePoints,
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
                         tension: 0.4,
@@ -554,7 +570,14 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { title: { display: true, text: 'Input %' }, grid: { color: '#1e293b' } },
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: 100,
+                            title: { display: true, text: 'Input %' },
+                            grid: { color: '#1e293b' },
+                            ticks: { stepSize: 10 }
+                        },
                         y: { min: 0, max: 100, title: { display: true, text: 'Output %' }, grid: { color: '#1e293b' } }
                     },
                     plugins: { legend: { display: false } }
@@ -565,18 +588,28 @@
                 const canvasPosition = Chart.helpers.getRelativePosition(e, chart);
                 const xVal = chart.scales.x.getValueForPixel(canvasPosition.x);
                 const yVal = chart.scales.y.getValueForPixel(canvasPosition.y);
-                const idx = Math.round(xVal);
+
+                // Snap xVal to nearest 10
+                const snapX = Math.round(xVal / 10) * 10;
+                const idx = snapX / 10;
+
                 if (idx >= 0 && idx <= 10) {
                     state[currentTab].curve[idx] = Math.max(0, Math.min(100, Math.round(yVal)));
-                    chart.data.datasets[0].data = state[currentTab].curve;
+                    // Update dataset with new object structure
+                    chart.data.datasets[0].data = state[currentTab].curve.map((y, i) => ({ x: i * 10, y: y }));
                     chart.update();
+                    triggerLiveUpdate();
                 }
             };
         }
 
         function setTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            Array.from(document.querySelectorAll('.tab')).find(t => t.innerText.toLowerCase() === tab).classList.add('active');
+            // Find tab by lowercase match
+            Array.from(document.querySelectorAll('.tab')).forEach(t => {
+                if (t.innerText.toLowerCase() === tab || (tab === 'gas' && t.innerText.toLowerCase() === 'throttle'))
+                    t.classList.add('active');
+            });
             currentTab = tab;
             refreshTabUI();
         }
@@ -603,33 +636,14 @@
             if (currentTab === 'gas') color = '#22c55e';
             if (currentTab === 'brake') color = '#ef4444';
 
-            chart.data.datasets[0].data = s.curve;
+            // IMPORTANT: With linear scale, must map to x/y objects
+            chart.data.datasets[0].data = s.curve.map((y, i) => ({ x: i * 10, y: y }));
             chart.data.datasets[0].borderColor = color;
             chart.data.datasets[0].backgroundColor = color + '20';
             chart.update();
         }
 
-        function bindInputs() {
-            ['gas', 'brake', 'clutch'].forEach(p => {
-                document.getElementById(p + 'Min').onchange = (e) => state[p].min = parseInt(e.target.value);
-                document.getElementById(p + 'Max').onchange = (e) => state[p].max = parseInt(e.target.value);
-                document.getElementById(p + 'Inverted').onchange = (e) => state[p].inverted = e.target.checked;
-            });
-            const updateTabState = () => {
-                const s = state[currentTab];
-                s.dzStart = parseInt(document.getElementById('inpDzStart').value);
-                s.dzEnd = parseInt(document.getElementById('inpDzEnd').value);
-                s.smooth = parseInt(document.getElementById('inpSmooth').value);
-                s.ceil = parseInt(document.getElementById('inpCeil').value);
-                document.getElementById('lblSmooth').innerText = s.smooth;
-                document.getElementById('lblCeil').innerText = s.ceil;
-            };
-            document.getElementById('inpDzStart').onchange = updateTabState;
-            document.getElementById('inpDzEnd').onchange = updateTabState;
-            document.getElementById('inpSmooth').oninput = updateTabState;
-            document.getElementById('inpCeil').oninput = updateTabState;
-            document.getElementById('wifiPass').onchange = (e) => state.wifiPass = e.target.value;
-        }
+
 
         function btnSample(pedal, type) {
             const val = rawValues[pedal];
@@ -731,7 +745,7 @@
                 list.forEach(f => {
                     const d = document.createElement('div');
                     d.className = 'profile-item' + (selectedProfile === f ? ' selected' : '');
-                    d.innerText = f;
+                    d.innerText = f.replace(".json", "");
                     d.onclick = () => {
                         selectedProfile = f;
                         document.getElementById('profileName').value = f.replace('.json', '');
@@ -745,9 +759,14 @@
         async function devSaveProfile() {
             const name = document.getElementById('profileName').value;
             if (!name) return alert("Enter name");
+
+            // First, sync current UI state to device so it knows what to save
+            await saveConfig(true);
+
             try {
                 await fetch('/api/profiles/save?name=' + encodeURIComponent(name), { method: 'POST' });
                 listProfiles();
+                alert("Profile Saved & Active!");
             } catch (e) { alert("Save failed"); }
         }
         async function devLoadProfile() {
@@ -819,18 +838,44 @@
             if (chart) {
                 const s = state[currentTab];
                 let raw = rawValues[currentTab];
-                let min = s.min + s.dzStart;
-                let max = s.max - s.dzEnd;
-                let range = max - min;
-                if (range < 1) range = 1;
-                let pct = (raw - min) / range * 100;
-                if (s.inverted) pct = 100 - pct;
+                let min = s.min;
+                let max = s.max;
+
+                // Adjust for deadzones relative to min/max direction
+                let effMin, effMax;
+                if (min < max) {
+                    effMin = min + s.dzStart;
+                    effMax = max - s.dzEnd;
+                } else {
+                    effMin = min - s.dzStart;
+                    effMax = max + s.dzEnd;
+                }
+
+                // Calculate percentage
+                // If min < max: (raw - min) / (max - min)
+                // If min > max: (raw - min) / (max - min) --> both negative, cancels out to positive ratio
+
+                let range = effMax - effMin;
+                if (range === 0) range = 1; // avoid div/0
+
+                let pct = (raw - effMin) / range * 100;
+
+                // Clamp
                 pct = Math.max(0, Math.min(100, pct));
 
-                let outPct = 0;
-                if (currentTab === 'gas') outPct = d.gas.o / 4095 * 100;
-                if (currentTab === 'brake') outPct = d.brake.o / 4095 * 100;
-                if (currentTab === 'clutch') outPct = d.clutch.o / 4095 * 100;
+                // Apply inversion to X axis visualization
+                if (s.inverted) pct = 100 - pct;
+
+                // Interpolate Y from the UI curve to make the dot "follow" the line
+                // The curve has 11 points (0..100 step 10)
+                let idx = Math.floor(pct / 10);
+                if (idx < 0) idx = 0;
+                if (idx > 9) idx = 9;
+
+                let Remainder = (pct - (idx * 10)) / 10; // 0.0 to 1.0 fraction
+                let p1 = s.curve[idx];
+                let p2 = s.curve[idx + 1];
+                let outPct = p1 + (p2 - p1) * Remainder;
 
                 chart.data.datasets[1].data = [{ x: pct, y: outPct }];
                 chart.update('none');
@@ -840,15 +885,53 @@
         async function loadConfig() {
             try {
                 const res = await fetch('/api/config');
+                if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
                 const data = await res.json();
-                if (data.gas) state.gas = data.gas;
-                if (data.brake) state.brake = data.brake;
-                if (data.clutch) state.clutch = data.clutch;
 
-                // if (data.ip) document.getElementById('dispIP').innerText = data.ip;
+                // Merge data carefully instead of replacing
+                // This ensures we don't lose structure if server sends partial data
+                if (data.gas) Object.assign(state.gas, data.gas);
+                if (data.brake) Object.assign(state.brake, data.brake);
+                if (data.clutch) Object.assign(state.clutch, data.clutch);
+
+                // Load custom curves saved on device
+                if (data.customs && Array.isArray(data.customs) && data.customs.length === 4) {
+                    for (let i = 0; i < 4; i++) {
+                        if (Array.isArray(data.customs[i]) && data.customs[i].length === 11) {
+                            customCurves[i] = data.customs[i].map(x => Number(x));
+                        }
+                    }
+                }
+
+                const fsSpan = document.querySelector('#fsStatus span');
+                // if (data.fs_mounted) {
+                //     const used = (data.fs_used / 1024).toFixed(1);
+                //     const total = (data.fs_total / 1024).toFixed(1);
+                //     fsSpan.innerText = `FS: Mounted (${used}/${total} KB) | Up: ${Math.floor(data.uptime / 1000)}s`;
+                //     fsSpan.style.color = "var(--success)";
+                // } else {
+                //     fsSpan.innerText = "FS: FAILED MOUNT";
+                //     fsSpan.style.color = "var(--danger)";
+                // }
 
                 refreshAllInputs();
-            } catch (e) { }
+            } catch (e) {
+                console.error("Load Config Error:", e);
+                const fsSpan = document.querySelector('#fsStatus span');
+                if (fsSpan) {
+                    fsSpan.innerText = e.message;
+                    fsSpan.style.color = "var(--danger)";
+                }
+            }
+        }
+
+        // Live update debounce
+        let liveUpdateTimer;
+        function triggerLiveUpdate() {
+            clearTimeout(liveUpdateTimer);
+            liveUpdateTimer = setTimeout(() => {
+                saveConfig(true); // silent=true now means "RAM update only" conceptually, but we need to pass param
+            }, 300);
         }
 
         async function saveConfig(silent = true) {
@@ -857,14 +940,55 @@
                     ...state,
                     customs: customCurves
                 };
-                await fetch('/api/config', { method: 'POST', body: JSON.stringify(payload) });
-                if (!silent) alert("Saved!");
-            } catch (e) { alert("Error saving"); }
+
+                // If silent (live update), use persistent=false to avoid flash wear
+                const url = silent ? '/api/config?persistent=false' : '/api/config';
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: { "Content-Type": "text/plain" }
+                });
+                if (!res.ok) throw new Error("Server returned " + res.status);
+
+                const txt = await res.text(); // Consume body
+
+                if (!silent) alert("Settings Saved to Flash!");
+            } catch (e) {
+                console.error(e);
+                if (!silent) alert("Error saving: " + e.message);
+            }
         }
 
         initChart();
-        bindInputs();
-        loadConfig();
+        loadConfig().then(() => {
+            refreshAllInputs();
+            bindInputs(); // Must call this to attach state-updating logic!
+        });
+
+        // Override bindInputs just in case, but actually we did it above
+        function bindInputs() {
+            ['gas', 'brake', 'clutch'].forEach(p => {
+                document.getElementById(p + 'Min').onchange = (e) => { state[p].min = parseInt(e.target.value); triggerLiveUpdate(); };
+                document.getElementById(p + 'Max').onchange = (e) => { state[p].max = parseInt(e.target.value); triggerLiveUpdate(); };
+                document.getElementById(p + 'Inverted').onchange = (e) => { state[p].inverted = e.target.checked; triggerLiveUpdate(); };
+            });
+            const updateTabState = () => {
+                const s = state[currentTab];
+                s.dzStart = parseInt(document.getElementById('inpDzStart').value);
+                s.dzEnd = parseInt(document.getElementById('inpDzEnd').value);
+                s.smooth = parseInt(document.getElementById('inpSmooth').value);
+                s.ceil = parseInt(document.getElementById('inpCeil').value);
+                document.getElementById('lblSmooth').innerText = s.smooth;
+                document.getElementById('lblCeil').innerText = s.ceil;
+                triggerLiveUpdate();
+            };
+            document.getElementById('inpDzStart').onchange = updateTabState;
+            document.getElementById('inpDzEnd').onchange = updateTabState;
+            document.getElementById('inpSmooth').oninput = updateTabState;
+            document.getElementById('inpCeil').oninput = updateTabState;
+        }
+
         if (location.hostname) {
             connectWS();
             listProfiles();
