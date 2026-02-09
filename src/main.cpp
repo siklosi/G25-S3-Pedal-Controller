@@ -8,9 +8,9 @@
 #include <WiFiManager.h>
 
 // --- DEFINITIONS ---
-#define PIN_GAS 1
-#define PIN_BRAKE 2
-#define PIN_CLUTCH 3
+#define PIN_GAS 4
+#define PIN_BRAKE 5
+#define PIN_CLUTCH 6
 
 // --- GLOBALS ---
 // 3 Axes (X, Y, Z), 0 buttons, 0 hats
@@ -19,6 +19,15 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_JOYSTICK, 0, 0,
                    false, false, false,  // Rx, Ry, Rz
                    false, false,         // Rudder, Throttle
                    false, false, false); // Accelerator, Brake, Steering
+
+String sysLog = "";
+void logMsg(String s) {
+  sysLog += String(millis()) + ": " + s + "\n";
+  // Keep log size reasonable
+  if (sysLog.length() > 2048)
+    sysLog = sysLog.substring(sysLog.length() - 2048);
+  Serial0.println(s);
+}
 
 WebServer server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);
@@ -48,25 +57,38 @@ struct PedalData {
 // Managed by WiFiManager
 
 // --- CONFIGURATION ---
+// --- CONFIGURATION ---
 const char *configPath = "/config.json";
+bool fsMounted = false;
 
 // Forward declarations of helper functions
 void applyConfigDoc(const StaticJsonDocument<2048> &doc);
 void serializeConfigDoc(StaticJsonDocument<2048> &doc);
 
 void loadConfig() {
-  if (!LittleFS.exists(configPath))
+  if (!fsMounted) {
+    logMsg("FS not mounted, skipping loadConfig");
     return;
+  }
+  if (!LittleFS.exists(configPath)) {
+    logMsg("Config file not found: " + String(configPath));
+    return;
+  }
   File f = LittleFS.open(configPath, "r");
-  if (!f)
+  if (!f) {
+    logMsg("Failed to open config file for reading");
     return;
+  }
 
   StaticJsonDocument<2048> doc;
   DeserializationError err = deserializeJson(doc, f);
   f.close();
 
-  if (err)
+  if (err) {
+    logMsg("JSON Deserialize error: " + String(err.c_str()));
     return;
+  }
+  logMsg("Config loaded successfully");
 
   // Load Custom Curves
   JsonArray customs = doc["customs"];
@@ -85,19 +107,30 @@ void loadConfig() {
   applyConfigDoc(doc);
 }
 
-void saveConfig() {
+bool saveConfig() {
+  if (!fsMounted)
+    return false;
   StaticJsonDocument<2048> doc;
   serializeConfigDoc(doc);
-  File f = LittleFS.open(configPath, "w");
-  serializeJson(doc, f);
-  wm.process();
 
-  static uint32_t last_print = 0;
-  if (millis() - last_print > 5000) {
-    last_print = millis();
-    Serial0.println("Loop heartbeat...");
+  // Verify file open
+  File f = LittleFS.open(configPath, "w");
+  if (!f) {
+    logMsg("FAILED to open config file for writing");
+    return false;
   }
+
+  if (serializeJson(doc, f) == 0) {
+    logMsg("FAILED to write JSON content");
+    f.close();
+    return false;
+  }
+
   f.close();
+  wm.process(); // Keep WiFi alive
+
+  logMsg("Config saved successfully.");
+  return true;
 }
 
 // Helper to apply JSON to Pedals
@@ -203,8 +236,16 @@ void handleConfigPost() {
   if (server.hasArg("plain")) {
     StaticJsonDocument<2048> doc;
     DeserializationError err = deserializeJson(doc, server.arg("plain"));
-    if (err)
-      return server.send(400);
+    if (err) {
+      logMsg("POST JSON Error: " + String(err.c_str()));
+      return server.send(400, "text/plain", "JSON Deserialization Failed");
+    }
+
+    // Capture debug info before applying
+    int debugGasMin = -1;
+    if (doc.containsKey("gas") && doc["gas"].containsKey("min")) {
+      debugGasMin = doc["gas"]["min"];
+    }
 
     vTaskSuspend(TaskSensorHandle);
 
@@ -221,11 +262,32 @@ void handleConfigPost() {
     }
 
     applyConfigDoc(doc);
-    saveConfig();
+
+    bool persistent = true;
+    if (server.hasArg("persistent") && server.arg("persistent") == "false") {
+      persistent = false;
+    }
+
+    bool saved = true;
+    if (persistent) {
+      saved = saveConfig();
+    }
     vTaskResume(TaskSensorHandle);
-    server.send(200, "application/json", "{\"status\":\"ok\"}");
+
+    // Construct response
+    String resp = "{\"status\":\"";
+    resp += (saved ? "ok" : "save_failed");
+    resp += "\", \"debug_gas_min\":";
+    resp += String(debugGasMin);
+    resp += "}";
+
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    if (saved)
+      server.send(200, "application/json", resp);
+    else
+      server.send(500, "application/json", resp);
   } else {
-    server.send(400);
+    server.send(400, "text/plain", "No Body");
   }
 }
 
@@ -234,6 +296,52 @@ void handleConfigGet() {
   serializeConfigDoc(doc);
   // Add current IP for UI display
   doc["ip"] = WiFi.localIP().toString();
+  doc["uptime"] = millis();
+
+  // Add FS Status
+  if (fsMounted) {
+    doc["fs_total"] = LittleFS.totalBytes();
+    doc["fs_used"] = LittleFS.usedBytes();
+    doc["fs_mounted"] = true;
+  } else {
+    doc["fs_mounted"] = false;
+  }
+
+  String out;
+  serializeJson(doc, out);
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.send(200, "application/json", out);
+}
+
+void handleDebug() {
+  StaticJsonDocument<4096> doc;
+  doc["log"] = sysLog;
+
+  JsonArray files = doc.createNestedArray("files");
+  File root = LittleFS.open("/");
+  if (root && root.isDirectory()) {
+    File f = root.openNextFile();
+    while (f) {
+      JsonObject fObj = files.createNestedObject();
+      fObj["name"] = String(f.name());
+      fObj["size"] = f.size();
+      fObj["dir"] = f.isDirectory();
+      f = root.openNextFile();
+    }
+  }
+
+  // check profiles subdir
+  File pRoot = LittleFS.open("/profiles");
+  if (pRoot && pRoot.isDirectory()) {
+    File f = pRoot.openNextFile();
+    while (f) {
+      JsonObject fObj = files.createNestedObject();
+      fObj["name"] = "/profiles/" + String(f.name());
+      fObj["size"] = f.size();
+      f = pRoot.openNextFile();
+    }
+  }
+
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
@@ -341,17 +449,28 @@ void setup() {
   Serial0.println("\n\n=== FIRMWARE BOOT START ===");
 
   // Init USB immediately so it enumerates before WiFi blocks
-  Serial0.println("Initializing USB...");
+  logMsg("Initializing USB...");
   USB.begin();
   Joystick.setXAxisRange(0, 1023);
   Joystick.setYAxisRange(0, 1023);
   Joystick.setZAxisRange(0, 1023);
   Joystick.begin();
-  Serial0.println("USB Initialized.");
+  logMsg("USB Initialized.");
 
-  LittleFS.begin(true); // format on fail
-  if (!LittleFS.exists("/profiles"))
+  if (LittleFS.begin(true)) {
+    fsMounted = true;
+    logMsg("LittleFS Mount Success");
+    logMsg("Total Bytes: " + String(LittleFS.totalBytes()));
+    logMsg("Used Bytes: " + String(LittleFS.usedBytes()));
+  } else {
+    fsMounted = false;
+    logMsg("LittleFS Mount FAILED");
+  }
+
+  if (!LittleFS.exists("/profiles")) {
     LittleFS.mkdir("/profiles");
+    logMsg("Created /profiles dir");
+  }
 
   loadConfig();
 
@@ -394,7 +513,7 @@ void setup() {
     server.streamFile(file, "text/html");
     file.close();
   });
-  server.serveStatic("/", LittleFS, "/");
+
   server.on("/api/config", HTTP_POST, handleConfigPost);
   server.on("/api/config", HTTP_GET, handleConfigGet);
   // Profiles
@@ -402,6 +521,10 @@ void setup() {
   server.on("/api/profiles/save", HTTP_POST, handleProfileSave);
   server.on("/api/profiles/load", HTTP_POST, handleProfileLoad);
   server.on("/api/profiles/delete", HTTP_POST, handleProfileDelete);
+  server.on("/api/debug", HTTP_GET, handleDebug);
+
+  // Serve static files last
+  server.serveStatic("/", LittleFS, "/");
 
   server.begin();
   webSocket.begin();
