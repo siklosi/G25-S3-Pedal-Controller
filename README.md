@@ -1,7 +1,7 @@
 # G25 S3 Pedal Controller
 
 <p align="center">
-<img width="800" alt="Web Interface Preview" src="https://github.com/user-attachments/assets/bbc4a2d5-6193-4b17-b81a-e0a0ff6334be" />
+<img width="942" height="898" alt="Screenshot" src="https://github.com/user-attachments/assets/55dc657b-81f2-4e87-99bd-e6b90304eda6" />
 </p>
 A modern ESP32-S3 based USB game controller for Logitech G25 pedals featuring web-based configuration, custom response curves, and profile management.
 
@@ -10,6 +10,8 @@ A modern ESP32-S3 based USB game controller for Logitech G25 pedals featuring we
 - **USB HID Game Controller** - Works as a native joystick with 3 axes (Gas/Brake/Clutch)
 - **Web-Based Configuration** - Modern, responsive interface accessible via WiFi
 - **Real-Time Monitoring** - Live pedal position visualization with raw and processed values
+- **Live Configuration** - All settings (deadzones, curves, smoothing) are applied instantly in RAM for real-time tuning
+- **Persistent Storage** - Explicit "Save to Flash" required to store settings permanently across reboots
 - **Custom Response Curves** - 11-point adjustable curves with visual editor
 - **Curve Presets** - Linear, Progressive, S-Shape, and Aggressive profiles
 - **Custom Curve Slots** - Save up to 4 custom curves per pedal
@@ -18,14 +20,13 @@ A modern ESP32-S3 based USB game controller for Logitech G25 pedals featuring we
 - **Advanced Calibration** - Min/max calibration, deadzone control, axis inversion
 - **Smoothing & Limiting** - Configurable output smoothing and ceiling adjustments
 - **WiFiManager** - Easy WiFi setup with captive portal
-- **Persistent Storage** - All settings saved to flash memory (LittleFS)
 - **WebSocket Live Data** - 20Hz real-time pedal data streaming
 
 ## 🛠️ Hardware Requirements
 
 ### ESP32-S3 Board
 - **Board**: ESP32-S3-DevKitC-1 (or compatible)
-- **Flash**: 8MB minimum (N8 or N16 variants)
+- **Flash**: 8MB minimum (N8 or N16 variants) with custom partition table
 - **PSRAM**: Optional (not required for this project)
 - **USB**: Native USB support required
 
@@ -39,9 +40,9 @@ Connect hall sensors to the following GPIO pins:
 
 | Pedal   | GPIO Pin | Color Code (Typical) |
 |---------|----------|----------------------|
-| Gas     | GPIO 1   | Green                |
-| Brake   | GPIO 2   | Red                  |
-| Clutch  | GPIO 3   | Blue                 |
+| Throttle| GPIO 4   | Green                |
+| Brake   | GPIO 5   | Red                  |
+| Clutch  | GPIO 6   | Blue                 |
 
 **Power Supply:**
 - Sensor VCC → 3.3V
@@ -129,11 +130,13 @@ Or check your router's DHCP client list for "G25_S3_Pedals"
 2. Click **Min** button for each pedal
 3. **Press each pedal fully**
 4. Click **Max** button for each pedal
-5. Click **Save All to Flash**
+5. **IMPORTANT:** Click **Save All to Flash** to perform a permanent save. Live changes are RAM-only.
 
 #### Advanced Options
 - **Inverted** - Reverse pedal direction if sensor is mounted backwards
 - **Deadzones** - Set start/end deadzones to eliminate jitter
+  - *Start*: Adds margin to Min value (ignores initial press)
+  - *End*: Subtracts margin from Max value (reaches 100% earlier)
 - **Smoothing** - Apply exponential smoothing (0-95%)
 - **Output Limit** - Cap maximum output (useful for brake pedal)
 
@@ -142,7 +145,7 @@ Or check your router's DHCP client list for "G25_S3_Pedals"
 #### Curve Editor
 - Click directly on the chart to adjust curve points
 - 11 adjustable points from 0% to 100% input
-- Real-time preview with live pedal position indicator (red dot)
+- Real-time preview with live pedal position indicator (red dot) that follows the curve
 
 #### Presets
 - **Linear** - 1:1 response (default)
@@ -175,7 +178,7 @@ Or check your router's DHCP client list for "G25_S3_Pedals"
    - Right-click Start → Settings → Devices → Printers & Scanners
    - Or search "Set up USB game controllers"
 4. **Verify axes**:
-   - X-Axis: Gas
+   - X-Axis: Throttle
    - Y-Axis: Brake
    - Z-Axis: Clutch
 
@@ -276,7 +279,7 @@ pio run --target upload
 ## 📊 Technical Specifications
 
 - **ADC Resolution**: 12-bit (0-4095)
-- **Output Resolution**: 10-bit (0-1023)
+- **Output Resolution**: 12-bit (0-4095)
 - **Sampling Rate**: ~1000Hz per sensor
 - **WebSocket Update Rate**: 20Hz
 - **Web Server**: HTTP on port 80
