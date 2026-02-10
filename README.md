@@ -3,6 +3,7 @@
 <p align="center">
 <img width="942" height="898" alt="Screenshot" src="https://github.com/user-attachments/assets/55dc657b-81f2-4e87-99bd-e6b90304eda6" />
 <img width="942" height="898" alt="photo" src="https://github.com/user-attachments/assets/4f3992d7-f7ac-43d9-b6e1-bf7186fe9088" />
+<img width="1192" height="1589" alt="pedal_final" src="https://github.com/user-attachments/assets/06aa892e-f1c2-439f-9f6a-fa150e62a83e" />
 
 </p>
 A modern ESP32-S3 based USB game controller for Logitech G25 pedals featuring web-based configuration, custom response curves, and profile management.
